@@ -1,5 +1,8 @@
 #!/bin/sh
 # vim:set sw=2 ts=2 sts=2 et ai:
+#
+# This is sent to GUEST VM and executed from GUEST VM
+#
 BASEPACKAGES="sudo aptitude vim nano- avahi-utils auto-apt-proxy"
 BASEPACKAGES="$BASEPACKAGES gpm screen git openssh-server openssh-client"
 #############################################################################
@@ -50,7 +53,7 @@ apt autoremove
 # shellcheck disable=SC2086
 apt install $BASEPACKAGES $PACKAGES
 
-/usr/sbin/adduser "$USERNAME" sudo
+/usr/sbin/adduser "$USERNAME" sudo || true
 echo "$HOSTNAME" > /etc/hostname
 echo "%sudo ALL = (ALL) NOPASSWD: ALL" >/etc/sudoers.d/sudo-group
 
@@ -66,7 +69,7 @@ ff02::2 ip6-allrouters
 EOF
 
 # Let's fix it now too
-hostname $HOSTNAME
+hostname "$HOSTNAME"
 
 cat > /etc/bash.bashrc << 'EOF'
 # System-wide .bashrc file for interactive bash(1) shells.
@@ -131,3 +134,5 @@ if [ -x /usr/lib/command-not-found -o -x /usr/share/command-not-found/command-no
 	}
 fi
 EOF
+echo "Let's create SSH key for $USERNAME at $HOSTNAME"
+su "$USERNAME" -c "ssh-keygen -t rsa"

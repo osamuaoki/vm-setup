@@ -1,0 +1,56 @@
+#!/bin/sh -e
+# vim:set sw=2 ts=2 sts=2 et ai:
+#
+# This is executed from HOST PARENT WS
+#
+# The 1st argument is hostname of GUEST VM (w/o ".local")
+#
+# Where this file is:
+HOSTPATH="src/public/vm-setup/vm-setup"
+# Get to the home directory
+cd
+if [ $(id -u) != "1000" ]; then
+  echo "Not right user $(id -n)"
+  exit 1
+fi
+VM="$1"
+if [ -z "$VM" ]; then
+  echo "Please provide host name as ARG1"
+  exit
+fi
+
+# Time to get and provide SSH public keys
+echo "Put authorized_key"
+
+STATUS="$(
+{
+ cat <<EOF
+cd
+mkdir -p .ssh
+chmod 770 .ssh
+if [ ! -e ".ssh/id_rsa" ] && [ ! -e ".ssh/id_rsa.pub" ]; then
+  echo "NO_KEYS"
+elif [ -e ".ssh/id_rsa" ] && [ -e ".ssh/id_rsa.pub" ]; then
+  echo "BOTH_KEYS"
+else
+  echo "HALF_KEYS"
+fi
+rm -f .ssh/authorized_keys
+EOF
+} | ssh "$VM.local" /bin/sh )"
+scp ~/.ssh/authorized_keys_4vm "$VM.local:~/.ssh/authorized_keys"
+if [ "$STATUS" = "NO_KEYS" ]; then
+  ssh "$VM.local"  ssh-keygen -t rsa
+elif [ "$STATUS" = "BOTH_KEYS" ]; then
+  echo "$STATUS"
+  echo "SSH key already generated, use it!"
+else
+  echo "$STATUS"
+  echo "Only one of SSH key already generated, check it!"
+  exit
+fi
+echo "Get id_rsa.pub"
+scp "$VM.local:~/.ssh/id_rsa.pub" ~/.ssh/id_rsa.pub."$VM"
+echo "Append to authorized_keys"
+cat ~/.ssh/id_rsa.pub."$VM" >>~/.ssh/authorized_keys
+scp "$HOSTPATH/vm-setup" "$VM.local:~/vm-setup"
